@@ -4,6 +4,7 @@ import "io"
 
 /*
 gin-compress Copyright (C) 2022 Aurora McGinnis
+Modifications Copyright (C) 2025 Rubén del Campo
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
