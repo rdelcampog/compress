@@ -2,6 +2,7 @@ package compress
 
 /*
 gin-compress Copyright (C) 2022 Aurora McGinnis
+Modifications Copyright (C) 2025 Rubén del Campo
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -39,13 +40,14 @@ func (cm *compressMiddleware) Handler(c *gin.Context) {
 
 	algo := cm.selectAlgorithm(c)
 
+	var rw io.WriteCloser
 	if algo == "" || !cm.shouldCompress(c) {
-		c.Next()
-		return
+		rw = newTrackingResponseWriter(c, cm.cfg.metricsHandler)
+	} else {
+		rw = newResponseWriter(c, cm.cfg.minCompressBytes, algo, algorithms[algo], cm.cfg.metricsHandler)
 	}
 
-	rw := newResponseWriter(c, cm.cfg.minCompressBytes, algo, algorithms[algo])
-	c.Writer = rw
+	c.Writer = rw.(gin.ResponseWriter)
 	c.Next()
 
 	_ = rw.Close()

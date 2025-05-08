@@ -2,6 +2,7 @@ package compress
 
 /*
 gin-compress Copyright (C) 2022 Aurora McGinnis
+Modifications Copyright (C) 2025 Rubén del Campo
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -20,6 +21,24 @@ const (
 	BROTLI  = "br"
 )
 
+// MetricsData contains information about compression metrics
+type MetricsData struct {
+	// OriginalSize is the size of the original response in bytes
+	OriginalSize int
+	// CompressedSize is the size of the compressed response in bytes (if compression was applied)
+	CompressedSize int
+	// CompressionApplied indicates whether compression was applied
+	CompressionApplied bool
+	// EncodingUsed is the encoding used for compression (empty if not compressed)
+	EncodingUsed string
+}
+
+var noopMetricsHandler = func(data MetricsData) {}
+
+// MetricsHandler is a function that will be called after a response is written
+// to collect compression metrics
+type MetricsHandler func(data MetricsData)
+
 // ExcludeFunc should return true if compression should be skipped for the current request
 type ExcludeFunc func(c *gin.Context) bool
 
@@ -34,6 +53,8 @@ type compressOptions struct {
 	maxDecodeSteps int
 	// skipDecompressRequest can be used to skip decompression of the body
 	skipDecompressRequest bool
+	// metricsHandler is called after a response is written with compression metrics
+	metricsHandler MetricsHandler
 }
 
 type CompressOption func(opts *compressOptions)
@@ -47,6 +68,7 @@ func newCompressOptions() *compressOptions {
 		minCompressBytes:      512,
 		maxDecodeSteps:        1,
 		skipDecompressRequest: false,
+		metricsHandler:        noopMetricsHandler,
 	}
 }
 
@@ -76,7 +98,7 @@ func WithCompressLevel(algo string, level int) CompressOption {
 }
 
 // WithPriority specifies which compression algo to use when the client can accept multiple algorithms.
-// The highest priority algorithm that the client will accept wins.
+// The highest priority algorithm that the client can accept wins.
 func WithPriority(algo string, priority int) CompressOption {
 	return func(opts *compressOptions) {
 		algorithms[algo].getConfig().priority = priority
@@ -114,5 +136,13 @@ func WithMaxDecodeSteps(steps int) CompressOption {
 func WithDecompressBody(decompress bool) CompressOption {
 	return func(opts *compressOptions) {
 		opts.skipDecompressRequest = !decompress
+	}
+}
+
+// WithMetricsHandler specifies a handler function that will be called after a response is written
+// with compression metrics data
+func WithMetricsHandler(handler MetricsHandler) CompressOption {
+	return func(opts *compressOptions) {
+		opts.metricsHandler = handler
 	}
 }

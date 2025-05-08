@@ -5,8 +5,7 @@ and decompressing HTTP requests.
 
 Currently, this package supports Brotli, GZIP, Deflate, and ZSTD for both compressing and decompressing.
 
-This was created for my own purposes. If you're looking for something that is perhaps a bit more actively supported,
-check out the official [Gin GZIP Middleware](https://github.com/gin-contrib/gzip).
+This is a fork of the original [gin-compress](https://github.com/aurowora/compress) package that adds compression metrics functionality. The original package is currently unmaintained.
 
 ### Usage
 
@@ -21,7 +20,7 @@ import (
 	"log"
 	"github.com/gin-gonic/gin"
 	limits "github.com/gin-contrib/size"
-	"github.com/aurowora/compress"
+	"github.com/rdelcampog/compress"
 )
 
 func main() {
@@ -60,6 +59,7 @@ The following configuration options are available for the Compress middleware:
 | WithMinCompressBytes(numBytes int)           | 512                                  | Do not invoke the compressor unless the response body is at least this many bytes                                                                                     |
 | WithMaxDecodeSteps(steps int)                | 1                                    | Determines how many rounds of decompression to perform if Content-Encoding includes multiple decompression algorithms.                                                |
 | WithDecompressBody(decompress bool)          | true                                 | Specifies whether the request body should be decompressed at all.                                                                                                     |
+| WithMetricsHandler(handler MetricsHandler)   | Not Set                              | Provides a handler function to collect compression metrics such as original size, compressed size, compression algorithm used, etc.                                    |
 
 ### Security
 
@@ -81,6 +81,7 @@ Tests cover most functionality in this package. The built-in tests can be run us
 
 ```
 gin-compress Copyright (C) 2022 Aurora McGinnis
+Modifications Copyright (C) 2025 Rubén del Campo
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -91,3 +92,37 @@ The full terms of the Mozilla Public License 2.0 can also be
 found in the LICENSE.txt file within this repository.
 
 The author of this package is not associated with the authors of [Gin](https://github.com/gin-gonic/gin) in any way.
+
+## Metrics Handler
+
+This fork adds the ability to collect metrics about compression operations. You can use the `WithMetricsHandler` option to provide a function that will be called after each response with the following data:
+
+```go
+// MetricsData contains information about compression metrics
+type MetricsData struct {
+    // OriginalSize is the size of the original response in bytes
+    OriginalSize int
+    // CompressedSize is the size of the compressed response in bytes (if compression was applied)
+    CompressedSize int
+    // CompressionApplied indicates whether compression was applied
+    CompressionApplied bool
+    // EncodingUsed is the encoding used for compression (empty if not compressed)
+    EncodingUsed string
+}
+```
+
+Example usage:
+
+```go
+r := gin.Default()
+r.Use(compress.Compress(
+    compress.WithMetricsHandler(func(data compress.MetricsData) {
+        // Log or collect metrics
+        if data.CompressionApplied {
+            log.Printf("Compressed %d bytes to %d bytes using %s (%.2f%% reduction)",
+                data.OriginalSize, data.CompressedSize, data.EncodingUsed,
+                float64(data.OriginalSize-data.CompressedSize)/float64(data.OriginalSize)*100)
+        }
+    }),
+))
+```

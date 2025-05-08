@@ -1,4 +1,4 @@
-module github.com/aurowora/compress
+module github.com/rdelcampog/compress
 
 go 1.16
 
